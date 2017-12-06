@@ -6,17 +6,8 @@ import json
 import time
 
 
-def downloadurl(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu '
-                      'Chromium/62.0.3202.94 Chrome/62.0.3202.94 Safari/537.36',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.6,ja;q=0.4,en;q=0.2',
-        'Host': 'www.lagou.com',
-        'Origin': 'https://www.lagou.com',
-        'Referer': 'https://www.lagou.com/zhaopin/?filterOption=',
-    }
-    data1 = requests.get(url, headers=headers).content
+def downloadurl(url, headers, cookie):
+    data1 = requests.get(url, headers=headers, cookies=cookie).content
     return data1
 
 
@@ -30,16 +21,20 @@ def choosearea(index):
     return area[index]
 
 
+def equip_url(index):
+    # + '/?labelWords=label' + 'filterOption=' + str(index)
+    return 'https://www.lagou.com/zhaopin/' + language + '/' + str(index)
+
+
+
 def parse_html(html):
+   # print(html)
     soup = BeautifulSoup(html, 'html.parser')
-    list1 = soup.find('div', attrs={'class': 's_position_list '}).ul
+    list1 = soup.find('div', attrs={'class': 's_position_list'}).ul
+    # print (list1)
     mylist = list1.find_all('li')
     for pos in mylist:
-        print(pos['data-company'])
-        print(pos.div.div.div.a['href'])
-        print(pos['data-positionname'])
-        print(pos['data-salary'])
-        print('*****************')
+        print(pos['data-company']+'   '+'   '+pos['data-positionname']+'   '+pos['data-salary']+'   '+pos.div.div.div.a['href'])
 
 
 def return_header_cookie():
@@ -50,7 +45,8 @@ def return_header_cookie():
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         'Host': 'www.lagou.com',
         'Origin': 'https://www.lagou.com',
-        'Referer': 'https://www.lagou.com/jobs/list_Java?city=%E5%B9%BF%E5%B7%9E&cl=false&fromSearch=true&labelWords=&suginput=',
+        'Referer': 'https://www.lagou.com/jobs/list_Java?city=%E5%B9%BF%E5%B7%9E&cl=false&fromSearch=true&labelWords'
+                   '=&suginput=',
         'X - Requested - With': 'XMLHttpRequest'
     }
     cookies = {
@@ -84,16 +80,28 @@ def parsejson(URL, language, page, headers, cookie):
 if __name__ == '__main__':
     # sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     language = chooselanguage(1)
-    city = choosearea(0)
-    GZDOWNURL = 'https://www.lagou.com/jobs/positionAjax.json?px=default&city='+city+'&needAddtionalResult=false' \
+    city = choosearea(2)
+    CITYNURL = 'https://www.lagou.com/jobs/positionAjax.json?px=default&city='+city+'&needAddtionalResult=false' \
                 '&isSchoolJob=0 '
-    CHINAURL = 'https://www.lagou.com/zhaopin/'+language+'/?labelWords=label'
     headers, cookie = return_header_cookie()
-    data = downloadurl(CHINAURL)
-    # parsejson(GZDOWNURL, language, 9, headers, cookie)
+
+    # ***********************************************************
+    # 通过城市查找 ：拉钩使用ajax方式，网页中不显示信息，
     for i in range(20):
         try:
-            parsejson(GZDOWNURL, language, i, headers, cookie)
+            parsejson(CITYNURL, language, i, headers, cookie)
             time.sleep(10)
         except KeyError:
             time.sleep(30)
+
+    # ***********************************************************
+    # 全国职位：网页中显示信息，使用beautifulsoup解析网页。
+    for i in range(1, 40):
+        try:
+            posurl = equip_url(i)
+            data = downloadurl(posurl, headers, cookie)
+            parse_html(data)
+            time.sleep(10)
+        except AttributeError:
+            time.sleep(30)
+    # ***********************************************************
